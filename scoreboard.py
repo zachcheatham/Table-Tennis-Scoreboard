@@ -56,6 +56,8 @@ class Scoreboard(Frame):
             self.parent.bind("<Button-1>", self.left_click)
             self.parent.bind("<Button-3>", self.right_click)
 
+        self.parent.bind("<Escape>", self.clean_up)
+
     def left_click(self, event):
         self.on_button_press(True, False)
 
@@ -242,7 +244,7 @@ class Scoreboard(Frame):
     def on_resize(self, event):
         self.setup_canvas()
 
-    def clean_up(self):
+    def clean_up(self, event=None):
         self.run = False
         if RASPI:
             GPIO.cleanup()
