@@ -3,7 +3,7 @@ import threading
 import time
 
 from RPi import GPIO
-from tkinter import Tk, Canvas, Frame, font, BOTH, CENTER
+from tkinter import Tk, Canvas, Frame, font, BOTH, CENTER, ALL
 
 MAX_SCORE = 11
 SERVES = 2
@@ -29,10 +29,8 @@ class Scoreboard(Frame):
         self.right_score = 0
         self.left_serving = False
         self.left_first_serving = False
-
         self.game_started = False
         self.game_over = False
-        self.left_winner = False
 
         self.parent.title("Table Tennis Scoreboard")
         self.pack(fill=BOTH, expand=2)
@@ -40,8 +38,7 @@ class Scoreboard(Frame):
         self.canvas = Canvas(self, highlightthickness=0)
         self.canvas.configure(background="black")
         self.canvas.pack(fill=BOTH, expand=2)
-
-        self.draw_canvas()
+        self.setup_canvas()
 
         # Setup buttons
         GPIO.setmode(GPIO.BOARD)
@@ -50,6 +47,9 @@ class Scoreboard(Frame):
 
         self.left_button_thread = threading.Thread(target=self.listen_to_left_button)
         self.left_button_thread.start()
+
+        self.right_button_thread = threading.Thread(target=self.listen_to_right_button)
+        self.right_button_thread.start()
 
     def listen_to_left_button(self):
         while self.run:
@@ -91,106 +91,145 @@ class Scoreboard(Frame):
 
     def on_button_press(self, left_side, is_long):
         if not self.game_started:
-            self.game_started = True
-            self.left_serving = left_side
-            self.left_first_serving = left_side
+            self.new_game(left_side)
         elif self.game_over:
             if is_long:
-                if left_side and self.left_winner:
-                    self.left_score = self.left_score - 1
-                    self.game_over = False
-                elif not left_side and not self.left_winner:
-                    self.right_score = self.right_score - 1
-                    self.game_over = False
+                if left_side and self.left_score > self.right_score:
+                    self.set_left_score(self.left_score - 1)
+                elif not left_side and self.left_score < self.right_score:
+                    self.set_right_score(self.right_score - 1)
             else:
-                self.game_over = False
-                self.left_score = 0
-                self.right_score = 0
-                self.left_serving = left_side
-                self.left_first_serving = left_side
+                self.new_game(left_side)
         else:
             if left_side:
                 if is_long:
-                    self.left_score = self.left_score - 1
-                    if self.left_score < 0:
-                        self.left_score = 0
+                    if self.left_score > 0:
+                        self.set_left_score(self.left_score - 1)
                 else:
-                    self.left_score = self.left_score + 1
-                    if self.left_score >= MAX_SCORE:
-                        if self.left_score - self.right_score > 1:
-                            self.game_over = True
-                            self.left_winner = True
+                    self.set_left_score(self.left_score + 1)
             else:
                 if is_long:
-                    self.right_score = self.right_score - 1
-                    if self.right_score < 0:
-                        self.right_score = 0
+                    if self.right_score > 0:
+                        self.set_right_score(self.right_score - 1)
                 else:
-                    self.right_score = self.right_score + 1
-                    if self.right_score >= MAX_SCORE:
-                        if self.right_score - self.left_score > 1:
-                            self.game_over = True
-                            self.left_winner = False
+                    self.set_right_score(self.right_score + 1)
 
-            total_points = self.right_score + self.left_score
-            if self.left_first_serving:
-                self.left_serving = (math.floor(total_points / 2) % 2 == 0)
-            else:
-                self.left_serving = (math.floor(total_points / 2) % 2 != 0)
+            if not self.game_over:
+                total_points = self.right_score + self.left_score
+                if self.left_first_serving:
+                    self.set_left_serving(math.floor(total_points / 2) % 2 == 0)
+                else:
+                    self.set_left_serving(math.floor(total_points / 2) % 2 != 0)
 
-        self.draw_canvas()
-
-    def draw_canvas(self):
-        self.canvas.delete("all")
+    def setup_canvas(self):
+        self.canvas.delete(ALL)
 
         width = self.winfo_width()
         height = self.winfo_height()
         x_half = width / 2
         y_half = height / 2
 
-        if self.game_started:
-            main_color = DEFAULT_COLOR
-            if not self.game_over and (self.left_score >= MAX_SCORE or self.right_score >= MAX_SCORE):
-                main_color = OVERTIME_COLOR
+        self.left_indicator_pos = x_half / 2
+        self.right_indicator_pos = x_half + x_half / 2
 
-            self.canvas.create_line(x_half, 0, x_half, height, width=2, fill=main_color)
+        biglabel_font = font.Font(family="Ozone", size=round(height/6))
+        score_font = font.Font(family="Ozone", size=round(height/2.5))
+        label_font = font.Font(family="Ozone", size=round(height/10))
 
-            score_font = font.Font(family="Ozone", size=round(height/2.5))
-            label_font = font.Font(family="Ozone", size=round(height/10))
+        self.canvas.create_text(x_half, y_half, text="First server\npress button\nto start", fill=DEFAULT_COLOR, font=biglabel_font, justify=CENTER, tags="instructions")
+        self.canvas.create_line(x_half, 0, x_half, height, width=2, fill=DEFAULT_COLOR, tags=("divider_line", "overtime_color", "game"))
+        self.canvas.create_text(x_half / 2, y_half, text='%02d' % self.left_score, fill=DEFAULT_COLOR, font=score_font, tags=("left_score", "overtime_color", "game"))
+        self.canvas.create_text(x_half + x_half / 2, y_half, text='%02d' % self.right_score, fill=DEFAULT_COLOR, font=score_font, tags=("right_score", "overtime_color", "game"))
 
-            # Render left score
-            color = main_color
-            if self.game_over and self.left_winner:
-                color = WINNING_COLOR
-            self.canvas.create_text(x_half / 2, y_half, text='%02d' % self.left_score, fill=color, font=score_font)
+        score_bottom = y_half + (round(height/2.5) / 2)
+        self.label_y = score_bottom + ((height - score_bottom) / 2)
 
-            # Render right score
-            color = main_color
-            if self.game_over and not self.left_winner:
-                color = WINNING_COLOR
-            self.canvas.create_text(x_half + x_half / 2, y_half, text='%02d' % self.right_score, fill=color, font=score_font)
+        self.label_cantag = self.canvas.create_text(x_half / 2, self.label_y, text="LABEL", fill=DEFAULT_COLOR, font=label_font, tags=("indicator_label", "overtime_color", "game"))
 
-            score_bottom = y_half + (round(height/2.5) / 2)
-            if self.game_over:
-                # Render winner
-                serving_position = score_bottom + ((height - score_bottom) / 2)
-                if self.left_winner:
-                    self.canvas.create_text(x_half / 2, serving_position, text="WINNER", fill=WINNING_COLOR, font=label_font)
-                else:
-                    self.canvas.create_text(x_half + x_half / 2, serving_position, text="WINNER", fill=WINNING_COLOR, font=label_font)
-            else:
-                # Render serving label
-                serving_position = score_bottom + ((height - score_bottom) / 2)
-                if self.left_serving:
-                    self.canvas.create_text(x_half / 2, serving_position, text="SERVING", fill=color, font=label_font)
-                else:
-                    self.canvas.create_text(x_half + x_half / 2, serving_position, text="SERVING", fill=color, font=label_font)
+        # Reapply logic
+        self.set_game_started(self.game_started)
+        self.set_left_serving(self.left_serving)
+        if self.left_score >= self.right_score:
+            self.set_right_score(self.right_score)
+            self.set_left_score(self.left_score)
         else:
-            label_font = font.Font(family="Ozone", size=round(height/6))
-            self.canvas.create_text(x_half, y_half, text="First server\npress button\nto start", fill=DEFAULT_COLOR, font=label_font, justify=CENTER)
+            self.set_right_score(self.right_score)
+            self.set_left_score(self.left_score)
+
+    def new_game(self, left_serving_first):
+        self.set_game_started(True)
+        self.set_game_over(False)
+        self.set_left_score(0)
+        self.set_right_score(0)
+        self.set_left_serving(left_serving_first)
+        self.canvas.itemconfig("overtime_color", fill=DEFAULT_COLOR)
+
+    def set_game_started(self, started):
+        self.game_started = started
+        if started:
+            self.canvas.itemconfig("instructions", state="hidden")
+            self.canvas.itemconfig("game", state="normal")
+        else:
+            self.canvas.itemconfig("instructions", state="normal")
+            self.canvas.itemconfig("game", state="hidden")
+
+    def set_left_serving(self, left_serving):
+        self.left_serving = left_serving
+        if left_serving:
+            self.canvas.coords("indicator_label", self.left_indicator_pos, self.label_y)
+        else:
+            self.canvas.coords("indicator_label", self.right_indicator_pos, self.label_y)
+
+        self.canvas.itemconfig("indicator_label", text="SERVING")
+
+    def set_left_score(self, score):
+        self.left_score = score
+        self.canvas.itemconfig("left_score", text="%02d" % score)
+
+        if score >= MAX_SCORE:
+            if score - self.right_score > 1:
+                self.set_game_over(True)
+            else:
+                self.canvas.itemconfig("overtime_color", fill=OVERTIME_COLOR)
+                if self.game_over:
+                    self.set_game_over(False)
+        else:
+            self.canvas.itemconfig("overtime_color", fill=DEFAULT_COLOR)
+            if self.game_over:
+                self.set_game_over(False)
+
+    def set_right_score(self, score):
+        self.right_score = score
+        self.canvas.itemconfig("right_score", text="%02d" % score)
+
+        if score >= MAX_SCORE:
+            if score - self.left_score > 1:
+                self.set_game_over(True)
+            else:
+                self.canvas.itemconfig("overtime_color", fill=OVERTIME_COLOR)
+                if self.game_over:
+                    self.set_game_over(False)
+        else:
+            self.canvas.itemconfig("overtime_color", fill=DEFAULT_COLOR)
+            if self.game_over:
+                self.set_game_over(False)
+
+    def set_game_over(self, game_over):
+        self.game_over = game_over
+        if game_over:
+            self.canvas.itemconfig("indicator_label", text="WINNER", fill=WINNING_COLOR)
+            if self.left_score > self.right_score:
+                self.canvas.itemconfig("left_score", fill=WINNING_COLOR)
+                self.canvas.coords("indicator_label", self.left_indicator_pos, self.label_y)
+            else:
+                self.canvas.itemconfig("right_score", fill=WINNING_COLOR)
+                self.canvas.coords("indicator_label", self.right_indicator_pos, self.label_y)
+        else:
+            # Reset label position and coloring
+            self.set_left_serving(self.left_serving)
 
     def on_resize(self, event):
-        self.draw_canvas()
+        self.setup_canvas()
 
     def clean_up(self):
         self.run = False
