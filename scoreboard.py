@@ -2,7 +2,12 @@ import math
 import threading
 import time
 
-from RPi import GPIO
+RASPI = True
+try:
+    from RPi import GPIO
+except ImportError:
+    RASPI = False
+
 from tkinter import Tk, Canvas, Frame, font, BOTH, CENTER, ALL
 
 MAX_SCORE = 11
@@ -40,16 +45,22 @@ class Scoreboard(Frame):
         self.canvas.pack(fill=BOTH, expand=2)
         self.setup_canvas()
 
-        # Setup buttons
-        GPIO.setmode(GPIO.BOARD)
-        GPIO.setup(LEFT_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.setup(RIGHT_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        if RASPI:
+            GPIO.setmode(GPIO.BOARD)
+            GPIO.setup(LEFT_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            GPIO.setup(RIGHT_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-        self.left_button_thread = threading.Thread(target=self.listen_to_left_button)
-        self.left_button_thread.start()
+            threading.Thread(target=self.listen_to_left_button).start()
+            threading.Thread(target=self.listen_to_right_button).start()
+        else:
+            self.parent.bind("<Button-1>", self.left_click)
+            self.parent.bind("<Button-3>", self.right_click)
 
-        self.right_button_thread = threading.Thread(target=self.listen_to_right_button)
-        self.right_button_thread.start()
+    def left_click(self, event):
+        self.on_button_press(True, False)
+
+    def right_click(self, event):
+        self.on_button_press(False, False)
 
     def listen_to_left_button(self):
         while self.run:
@@ -233,7 +244,8 @@ class Scoreboard(Frame):
 
     def clean_up(self):
         self.run = False
-        GPIO.cleanup()
+        if RASPI:
+            GPIO.cleanup()
         root.destroy()
 
 root = Tk()
