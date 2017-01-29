@@ -35,6 +35,7 @@ class Scoreboard(Frame):
         self.left_serving = False
         self.left_first_serving = False
         self.game_started = False
+        self.game_start_time = 0
         self.game_over = False
 
         self.parent.title("Table Tennis Scoreboard")
@@ -148,16 +149,22 @@ class Scoreboard(Frame):
         biglabel_font = font.Font(family="Ozone", size=round(height/6))
         score_font = font.Font(family="Ozone", size=round(height/2.5))
         label_font = font.Font(family="Ozone", size=round(height/10))
+        timer_font = font.Font(family="Ozone", size=round(height/7))
 
         self.canvas.create_text(x_half, y_half, text="First server\npress button\nto start", fill=DEFAULT_COLOR, font=biglabel_font, justify=CENTER, tags="instructions")
-        self.canvas.create_line(x_half, 0, x_half, height, width=2, fill=DEFAULT_COLOR, tags=("divider_line", "overtime_color", "game"))
         self.canvas.create_text(x_half / 2, y_half, text='%02d' % self.left_score, fill=DEFAULT_COLOR, font=score_font, tags=("left_score", "overtime_color", "game"))
         self.canvas.create_text(x_half + x_half / 2, y_half, text='%02d' % self.right_score, fill=DEFAULT_COLOR, font=score_font, tags=("right_score", "overtime_color", "game"))
 
-        score_bottom = y_half + (round(height/2.5) / 2)
+        timer_y = timer_font.cget("size") / 2 + height / 60
+        self.canvas.create_text(x_half, timer_y, text="00:00", fill=DEFAULT_COLOR, font=timer_font, tags=("timer", "game"))
+        line_pos = timer_y + timer_font.cget("size") / 2 + height / 30
+        self.canvas.create_line(x_half, line_pos, x_half, height, width=2, fill=DEFAULT_COLOR, tags=("overtime_color", "game"))
+        self.canvas.create_line(0, line_pos, width, line_pos, width=2, fill=DEFAULT_COLOR, tags=("overtime_color", "game"))
+
+        score_bottom = y_half + (score_font.cget("size") / 2)
         self.label_y = score_bottom + ((height - score_bottom) / 2)
 
-        self.label_cantag = self.canvas.create_text(x_half / 2, self.label_y, text="LABEL", fill=DEFAULT_COLOR, font=label_font, tags=("indicator_label", "overtime_color", "game"))
+        self.canvas.create_text(x_half / 2, self.label_y, text="LABEL", fill=DEFAULT_COLOR, font=label_font, tags=("indicator_label", "overtime_color", "game"))
 
         # Reapply logic
         self.set_game_started(self.game_started)
@@ -174,8 +181,10 @@ class Scoreboard(Frame):
         self.set_game_over(False)
         self.set_left_score(0)
         self.set_right_score(0)
+        self.game_start_time = time.time()
         self.set_left_serving(left_serving_first)
         self.canvas.itemconfig("overtime_color", fill=DEFAULT_COLOR)
+        threading.Thread(target=self.update_timer).start()
 
     def set_game_started(self, started):
         self.game_started = started
@@ -241,6 +250,13 @@ class Scoreboard(Frame):
             # Reset label position and coloring
             self.set_left_serving(self.left_serving)
 
+    def update_timer(self):
+        while not self.game_over and self.game_started:
+            seconds = time.time() - self.game_start_time
+            minutes = math.floor(seconds / 60)
+            seconds = seconds % 60
+            self.canvas.itemconfig("timer", text="%02d:%02d" % (minutes, seconds))
+
     def on_resize(self, event):
         self.setup_canvas()
 
@@ -255,6 +271,6 @@ root.attributes("-fullscreen", True)
 root.config(bg="black")
 
 window = Scoreboard(root)
-
 root.protocol("WM_DELETE_WINDOW", window.clean_up)
+
 root.mainloop()
