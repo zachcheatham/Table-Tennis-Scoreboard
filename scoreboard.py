@@ -14,7 +14,7 @@ MAX_SCORE = 11
 SERVES = 2
 
 LEFT_BUTTON = 11
-RIGHT_BUTTON = 13
+RIGHT_BUTTON = 12
 
 DEFAULT_COLOR = "#FFC900"
 OVERTIME_COLOR = "#FF0000"
@@ -51,11 +51,11 @@ class Scoreboard(Frame):
             GPIO.setup(LEFT_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
             GPIO.setup(RIGHT_BUTTON, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-            threading.Thread(target=self.listen_to_left_button).start()
-            threading.Thread(target=self.listen_to_right_button).start()
+            GPIO.add_event_detect(LEFT_BUTTON, GPIO.FALLING, callback=self.button_event, bouncetime=1000)
+            GPIO.add_event_detect(RIGHT_BUTTON, GPIO.FALLING, callback=self.button_event, bouncetime=1000)
         else:
             self.parent.bind("<Button-1>", self.left_click)
-            self.parent.bind("<Button-3>", self.right_click)
+            self.parent.bind("<Button-3>", self.right_click) 
 
         self.parent.bind("<Escape>", self.clean_up)
 
@@ -65,43 +65,8 @@ class Scoreboard(Frame):
     def right_click(self, event):
         self.on_button_press(False, False)
 
-    def listen_to_left_button(self):
-        while self.run:
-            press_time = 0
-            while self.run:
-                c = GPIO.wait_for_edge(LEFT_BUTTON, GPIO.RISING, timeout=500)
-                if not (c is None):
-                    print ("L BUTTON DOWN")
-                    press_time = int(time.time())
-                    break
-
-            waiting = True
-            while self.run:
-                c = GPIO.wait_for_edge(LEFT_BUTTON, GPIO.FALLING, timeout=500)
-                if not (c is None):
-                    print ("L BUTTON UP")
-                    press_length = int(time.time()) - press_time
-                    self.on_button_press(True, press_length >= 3)
-                    break
-
-    def listen_to_right_button(self):
-        while self.run:
-            press_time = 0
-            while self.run:
-                c = GPIO.wait_for_edge(RIGHT_BUTTON, GPIO.RISING, timeout=500)
-                if not (c is None):
-                    print ("R BUTTON DOWN")
-                    press_time = int(time.time())
-                    break
-
-            waiting = True
-            while self.run:
-                c = GPIO.wait_for_edge(RIGHT_BUTTON, GPIO.FALLING, timeout=500)
-                if not (c is None):
-                    print ("R BUTTON UP")
-                    press_length = int(time.time()) - press_time
-                    self.on_button_press(False, press_length >= 3)
-                    break
+    def button_event(self, channel):
+            self.on_button_press(channel == LEFT_BUTTON, False)
 
     def on_button_press(self, left_side, is_long):
         if not self.game_started:
@@ -267,7 +232,7 @@ class Scoreboard(Frame):
         root.destroy()
 
 root = Tk()
-root.attributes("-fullscreen", True)
+#root.attributes("-fullscreen", True)
 root.config(bg="black")
 
 window = Scoreboard(root)
