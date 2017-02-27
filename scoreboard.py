@@ -55,7 +55,7 @@ class Scoreboard(Frame):
             GPIO.add_event_detect(RIGHT_BUTTON, GPIO.FALLING, callback=self.button_event, bouncetime=1000)
         else:
             self.parent.bind("<Button-1>", self.left_click)
-            self.parent.bind("<Button-3>", self.right_click) 
+            self.parent.bind("<Button-3>", self.right_click)
 
         self.parent.bind("<Escape>", self.clean_up)
 
@@ -95,10 +95,9 @@ class Scoreboard(Frame):
 
             if not self.game_over:
                 total_points = self.right_score + self.left_score
-                if self.left_first_serving:
-                    self.set_left_serving(math.floor(total_points / 2) % 2 == 0)
-                else:
-                    self.set_left_serving(math.floor(total_points / 2) % 2 != 0)
+                first_serving = math.floor(total_points / 2) % 2 == 0
+                self.set_left_serving((self.left_first_serving and first_serving) or (not self.left_first_serving and first_serving))
+
 
     def setup_canvas(self):
         self.canvas.delete(ALL)
@@ -148,6 +147,7 @@ class Scoreboard(Frame):
         self.set_right_score(0)
         self.game_start_time = time.time()
         self.set_left_serving(left_serving_first)
+        self.left_serving_first = left_serving_first
         self.canvas.itemconfig("overtime_color", fill=DEFAULT_COLOR)
         threading.Thread(target=self.update_timer).start()
 
@@ -232,7 +232,7 @@ class Scoreboard(Frame):
         root.destroy()
 
 root = Tk()
-#root.attributes("-fullscreen", True)
+root.attributes("-fullscreen", True)
 root.config(bg="black")
 
 window = Scoreboard(root)
