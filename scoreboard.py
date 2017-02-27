@@ -133,6 +133,7 @@ class Scoreboard(Frame):
         self.label_y = score_bottom + ((height - score_bottom) / 2)
 
         self.canvas.create_text(x_half / 2, self.label_y, text="LABEL", fill=DEFAULT_COLOR, font=label_font, tags=("indicator_label", "overtime_color", "game"))
+        self.canvas.create_text(x_half / 2, self.label_y, text="LOSER", fill=OVERTIME_COLOR, font=label_font, state="hidden", tags=("loser_label"))
 
         # Reapply logic
         self.set_game_started(self.game_started)
@@ -154,6 +155,7 @@ class Scoreboard(Frame):
         self.set_left_serving(left_serving_first)
         self.left_serving_first = left_serving_first
         self.canvas.itemconfig("overtime_color", fill=DEFAULT_COLOR)
+        self.canvas.itemconfig("loser_label", state="hidden")
         threading.Thread(target=self.update_timer).start()
 
     def set_game_started(self, started):
@@ -218,18 +220,23 @@ class Scoreboard(Frame):
         self.game_over = game_over
         if game_over:
             self.canvas.itemconfig("indicator_label", text="WINNER", fill=WINNING_COLOR)
+            self.canvas.itemconfig("loser_label", state="normal")
             if self.left_score > self.right_score:
                 self.canvas.itemconfig("left_score", fill=WINNING_COLOR)
+                self.canvas.itemconfig("right_score", fill=OVERTIME_COLOR)
                 self.canvas.coords("indicator_label", self.left_indicator_pos, self.label_y)
+                self.canvas.coords("loser_label", self.right_indicator_pos, self.label_y)
             else:
                 self.canvas.itemconfig("right_score", fill=WINNING_COLOR)
+                self.canvas.itemconfig("left_score", fill=OVERTIME_COLOR)
                 self.canvas.coords("indicator_label", self.right_indicator_pos, self.label_y)
+                self.canvas.coords("loser_label", self.left_indicator_pos, self.label_y)
         else:
             # Reset label position and coloring
             self.set_left_serving(self.left_serving)
 
     def update_timer(self):
-        while not self.game_over and self.game_started:
+        while not self.game_over and self.game_started and self.run:
             seconds = time.time() - self.game_start_time
             minutes = math.floor(seconds / 60)
             seconds = seconds % 60
