@@ -37,6 +37,7 @@ class Scoreboard(Frame):
         self.game_started = False
         self.game_start_time = 0
         self.game_over = False
+        self.overtime = False
 
         self.parent.title("Table Tennis Scoreboard")
         self.pack(fill=BOTH, expand=2)
@@ -94,9 +95,12 @@ class Scoreboard(Frame):
                     self.set_right_score(self.right_score + 1)
 
             if not self.game_over:
-                total_points = self.right_score + self.left_score
-                first_serving = math.floor(total_points / 2) % 2 == 0
-                self.set_left_serving((self.left_first_serving and first_serving) or (not self.left_first_serving and first_serving))
+                if self.overtime and self.left_score != self.right_score:
+                    self.set_left_serving(self.left_score < self.right_score)
+                else:
+                    total_points = self.right_score + self.left_score
+                    first_serving = math.floor(total_points / 2) % 2 == 0
+                    self.set_left_serving((self.left_first_serving and first_serving) or (not self.left_first_serving and first_serving))
 
 
     def setup_canvas(self):
@@ -141,6 +145,7 @@ class Scoreboard(Frame):
             self.set_left_score(self.left_score)
 
     def new_game(self, left_serving_first):
+        self.overtime = False
         self.set_game_started(True)
         self.set_game_over(False)
         self.set_left_score(0)
@@ -178,10 +183,14 @@ class Scoreboard(Frame):
                 self.set_game_over(True)
             else:
                 self.canvas.itemconfig("overtime_color", fill=OVERTIME_COLOR)
+                self.overtime = True
+
                 if self.game_over:
                     self.set_game_over(False)
         else:
             self.canvas.itemconfig("overtime_color", fill=DEFAULT_COLOR)
+            self.overtime = False
+
             if self.game_over:
                 self.set_game_over(False)
 
@@ -194,10 +203,14 @@ class Scoreboard(Frame):
                 self.set_game_over(True)
             else:
                 self.canvas.itemconfig("overtime_color", fill=OVERTIME_COLOR)
+                self.overtime = True
+
                 if self.game_over:
                     self.set_game_over(False)
         else:
             self.canvas.itemconfig("overtime_color", fill=DEFAULT_COLOR)
+            self.overtime = False
+
             if self.game_over:
                 self.set_game_over(False)
 
