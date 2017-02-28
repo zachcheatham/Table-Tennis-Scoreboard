@@ -100,7 +100,12 @@ class Scoreboard(Frame):
                 else:
                     total_points = self.right_score + self.left_score
                     first_serving = math.floor(total_points / 2) % 2 == 0
-                    self.set_left_serving((self.left_first_serving and first_serving) or (not self.left_first_serving and first_serving))
+                    print (first_serving, " ", self.left_serving_first)
+                    if self.left_serving_first:
+                        self.set_left_serving(first_serving)
+                    else:
+                        self.set_left_serving(not first_serving)
+                    #self.set_left_serving((self.left_first_serving and first_serving) or (not self.left_first_serving and first_serving))
 
 
     def setup_canvas(self):
@@ -252,7 +257,7 @@ class Scoreboard(Frame):
         root.destroy()
 
 root = Tk()
-root.attributes("-fullscreen", True)
+#root.attributes("-fullscreen", True)
 root.config(bg="black")
 
 window = Scoreboard(root)
