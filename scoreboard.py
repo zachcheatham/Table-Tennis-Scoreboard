@@ -17,8 +17,9 @@ LEFT_BUTTON = 11
 RIGHT_BUTTON = 12
 
 DEFAULT_COLOR = "#FFC900"
-OVERTIME_COLOR = "#FF0000"
+OVERTIME_COLOR = "#FF8C00"
 WINNING_COLOR = "#00FF00"
+LOSING_COLOR = "#FF0000"
 
 class Scoreboard(Frame):
     def __init__(self, parent):
@@ -37,7 +38,7 @@ class Scoreboard(Frame):
         self.game_started = False
         self.game_start_time = 0
         self.game_over = False
-        self.overtime = False
+        self.game_point = False
 
         self.parent.title("Table Tennis Scoreboard")
         self.pack(fill=BOTH, expand=2)
@@ -95,12 +96,12 @@ class Scoreboard(Frame):
                     self.set_right_score(self.right_score + 1)
 
             if not self.game_over:
-                if self.overtime and self.left_score != self.right_score:
+                if self.game_point and self.left_score != self.right_score:
                     self.set_left_serving(self.left_score < self.right_score)
                 else:
                     total_points = self.right_score + self.left_score
                     first_serving = math.floor(total_points / 2) % 2 == 0
-                    print (first_serving, " ", self.left_serving_first)
+
                     if self.left_serving_first:
                         self.set_left_serving(first_serving)
                     else:
@@ -119,8 +120,8 @@ class Scoreboard(Frame):
         self.left_indicator_pos = x_half / 2
         self.right_indicator_pos = x_half + x_half / 2
 
-        biglabel_font = font.Font(family="Ozone", size=round(height/6))
-        score_font = font.Font(family="Ozone", size=round(height/2.5))
+        biglabel_font = font.Font(family="Ozone", size=round(height/8))
+        score_font = font.Font(family="Ozone", size=round(height/3))
         label_font = font.Font(family="Ozone", size=round(height/10))
         timer_font = font.Font(family="Ozone", size=round(height/7))
 
@@ -138,7 +139,7 @@ class Scoreboard(Frame):
         self.label_y = score_bottom + ((height - score_bottom) / 2)
 
         self.canvas.create_text(x_half / 2, self.label_y, text="LABEL", fill=DEFAULT_COLOR, font=label_font, tags=("indicator_label", "overtime_color", "game"))
-        self.canvas.create_text(x_half / 2, self.label_y, text="LOSER", fill=OVERTIME_COLOR, font=label_font, state="hidden", tags=("loser_label"))
+        self.canvas.create_text(x_half / 2, self.label_y, text="LOSER", fill=LOSING_COLOR, font=label_font, state="hidden", tags=("loser_label"))
 
         # Reapply logic
         self.set_game_started(self.game_started)
@@ -151,7 +152,7 @@ class Scoreboard(Frame):
             self.set_left_score(self.left_score)
 
     def new_game(self, left_serving_first):
-        self.overtime = False
+        self.game_point = False
         self.set_game_started(True)
         self.set_game_over(False)
         self.set_left_score(0)
@@ -184,40 +185,26 @@ class Scoreboard(Frame):
     def set_left_score(self, score):
         self.left_score = score
         self.canvas.itemconfig("left_score", text="%02d" % score)
-
-        if score >= MAX_SCORE:
-            if score - self.right_score > 1:
-                self.set_game_over(True)
-            else:
-                self.canvas.itemconfig("overtime_color", fill=OVERTIME_COLOR)
-                self.overtime = True
-
-                if self.game_over:
-                    self.set_game_over(False)
-        else:
-            self.canvas.itemconfig("overtime_color", fill=DEFAULT_COLOR)
-            self.overtime = False
-
-            if self.game_over:
-                self.set_game_over(False)
+        self.check_win()
 
     def set_right_score(self, score):
         self.right_score = score
         self.canvas.itemconfig("right_score", text="%02d" % score)
+        self.check_win()
 
-        if score >= MAX_SCORE:
-            if score - self.left_score > 1:
+    def check_win(self):
+        winning_score = max(self.left_score, self.right_score)
+        if winning_score >= MAX_SCORE - 1:
+            losing_score = min(self.left_score, self.right_score)
+            if winning_score >= MAX_SCORE and winning_score - losing_score > 1:
                 self.set_game_over(True)
             else:
                 self.canvas.itemconfig("overtime_color", fill=OVERTIME_COLOR)
-                self.overtime = True
-
-                if self.game_over:
-                    self.set_game_over(False)
+                self.game_point = True
         else:
-            self.canvas.itemconfig("overtime_color", fill=DEFAULT_COLOR)
-            self.overtime = False
-
+            if self.game_point:
+                self.canvas.itemconfig("overtime_color", fill=DEFAULT_COLOR)
+                self.game_point = False
             if self.game_over:
                 self.set_game_over(False)
 
@@ -228,12 +215,12 @@ class Scoreboard(Frame):
             self.canvas.itemconfig("loser_label", state="normal")
             if self.left_score > self.right_score:
                 self.canvas.itemconfig("left_score", fill=WINNING_COLOR)
-                self.canvas.itemconfig("right_score", fill=OVERTIME_COLOR)
+                self.canvas.itemconfig("right_score", fill=LOSING_COLOR)
                 self.canvas.coords("indicator_label", self.left_indicator_pos, self.label_y)
                 self.canvas.coords("loser_label", self.right_indicator_pos, self.label_y)
             else:
                 self.canvas.itemconfig("right_score", fill=WINNING_COLOR)
-                self.canvas.itemconfig("left_score", fill=OVERTIME_COLOR)
+                self.canvas.itemconfig("left_score", fill=LOSING_COLOR)
                 self.canvas.coords("indicator_label", self.right_indicator_pos, self.label_y)
                 self.canvas.coords("loser_label", self.left_indicator_pos, self.label_y)
         else:
@@ -257,7 +244,7 @@ class Scoreboard(Frame):
         root.destroy()
 
 root = Tk()
-#root.attributes("-fullscreen", True)
+root.attributes("-fullscreen", True)
 root.config(bg="black")
 
 window = Scoreboard(root)
