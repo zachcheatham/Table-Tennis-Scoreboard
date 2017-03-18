@@ -31,6 +31,8 @@
 #define WINNING_COLOR 0, 1, 0
 #define LOSING_COLOR 1, 0, 0
 
+#define INSTRUCTIONS_TIMEOUT 60
+
 #define LEFT_BUTTON 18
 #define RIGHT_BUTTON 17
 
@@ -38,6 +40,7 @@ Game *game;
 GtkWidget *drawingArea;
 bool ready = false;
 bool inGame = false;
+guint instructionsTimeoutID = 0;
 
 void draw_multiline_text(cairo_t *cr, const char **text,
     unsigned short lines, double x, double y)
@@ -222,6 +225,14 @@ gboolean draw(GtkWidget *widget, cairo_t *cr)
     return FALSE;
 }
 
+gboolean showInstructions(gpointer data)
+{
+    (void) data;
+    inGame = false;
+    gtk_widget_queue_draw(drawingArea);
+    return FALSE;
+}
+
 /* We need a wrapper to pass to g_idle_add in the below function
    so that we can return false....*/
 #if __arm__
@@ -236,6 +247,12 @@ void input(Game::Player player)
 {
     if (!inGame or game->state == Game::GAMEOVER)
     {
+        if (instructionsTimeoutID != 0)
+        {
+            g_source_remove(instructionsTimeoutID);
+            instructionsTimeoutID = 0;
+        }
+
         game->startGame(player);
         inGame = true;
     }
@@ -249,6 +266,12 @@ void input(Game::Player player)
     #else
     gtk_widget_queue_draw(drawingArea);
     #endif
+
+    // Game ended on that move
+    if (game->state == Game::GAMEOVER)
+    {
+        instructionsTimeoutID = g_timeout_add_seconds(INSTRUCTIONS_TIMEOUT, showInstructions, NULL);
+    }
 }
 
 #if __arm__
@@ -280,11 +303,11 @@ gboolean mouseClick(GtkWidget *widget, GdkEventButton *event)
 }
 #endif
 
-gint timerTick(gpointer data)
+gboolean timerTick(gpointer data)
 {
     (void) data;
     gtk_widget_queue_draw(drawingArea);
-    return 1;
+    return TRUE;
 }
 
 void windowActivated(GtkApplication* app)
