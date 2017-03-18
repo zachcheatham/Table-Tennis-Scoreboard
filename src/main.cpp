@@ -118,15 +118,13 @@ gboolean draw(GtkWidget *widget, cairo_t *cr)
         cairo_text_extents(cr, text, &textExtents);
         timerY = windowHeight * TIMER_POSITION_FACTOR + textExtents.height;
         cairo_move_to(cr, halfX - textExtents.width / 2, timerY);
-        cairo_set_source_rgb(cr, DEFAULT_COLOR);
-        cairo_show_text(cr, text);
-
-        // Dividers
         if (game->state == Game::GAMEPOINT)
             cairo_set_source_rgb(cr, GAMEPOINT_COLOR);
         else
             cairo_set_source_rgb(cr, DEFAULT_COLOR);
+        cairo_show_text(cr, text);
 
+        // Dividers
         cairo_set_line_width(cr, 2);
 
         horzLineY = timerY + windowHeight * TIMER_POSITION_FACTOR;
