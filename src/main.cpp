@@ -254,7 +254,7 @@ void input(Game::Player player)
 }
 
 #if __arm__
-void buttonChange(int gpio, int level, uint32_t tick)
+void buttonChange(int gpio, int level)
 {
     if (ready)
     {
