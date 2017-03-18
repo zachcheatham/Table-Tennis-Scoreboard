@@ -10,17 +10,21 @@
 
 #define APP_NAME "Table Tennis Scoreboard"
 #define APP_PACKAGE "me.zachcheatham.table-tennis-scoreboard"
-#define STRING_INSTRUCTIONS {"First server", "press button", "to start"}
+#define STRING_INSTRUCTIONS {"FIRST SERVER", "PRESS BUTTON", "TO START"}
 #define STRING_INSTRUCTION_LINES 3
 #define STRING_WINNER "WINNER"
 #define STRING_LOSER "LOSER"
 #define STRING_SERVING "SERVING"
 
-#define TIMER_POSITION_FACTOR 0.03333333333 // 1/30
+#define VERSION_SIZE 12
+#define VERSION_PADDING 15
+#define INSTRUCTIONS_SIZE_FACTOR 0.125
+#define TIMER_POSITION_FACTOR 0.03333333333
 #define TIMER_SIZE_FACTOR 0.19
-#define INSTRUCTIONS_SIZE_FACTOR 0.125      // 1/8
 #define SCORE_SIZE_FACTOR 0.45
 #define LABEL_SIZE_FACTOR 0.13
+
+#define FONT "Ozone"
 
 #define DEFAULT_COLOR 1, 0.8, 0
 #define GAMEPOINT_COLOR 1, 0.549019608, 0
@@ -78,6 +82,7 @@ void draw_text_centered(cairo_t *cr, const char *text, double x, double y)
 
 gboolean draw(GtkWidget *widget, cairo_t *cr)
 {
+    cairo_text_extents_t textExtents;
     double halfX;
     guint windowWidth;
     guint windowHeight;
@@ -91,11 +96,10 @@ gboolean draw(GtkWidget *widget, cairo_t *cr)
     cairo_set_source_rgb(cr, 0, 0, 0);
     cairo_fill(cr);
 
-    cairo_select_font_face(cr, "Ozone", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_select_font_face(cr, FONT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
 
     if (inGame)
     {
-        cairo_text_extents_t textExtents;
         char text[8];
         unsigned short timerSeconds;
         unsigned short timerMinutes;
@@ -205,9 +209,16 @@ gboolean draw(GtkWidget *widget, cairo_t *cr)
     else
     {
         const char *instructions[] = STRING_INSTRUCTIONS;
+
         cairo_set_source_rgb(cr, DEFAULT_COLOR);
         cairo_set_font_size(cr, windowWidth * INSTRUCTIONS_SIZE_FACTOR);
         draw_multiline_text(cr, instructions, STRING_INSTRUCTION_LINES, halfX, windowHeight / 2);
+
+        cairo_set_font_size(cr, VERSION_SIZE);
+        cairo_text_extents(cr, GIT_VERSION, &textExtents);
+        cairo_move_to(cr, windowWidth - textExtents.width - VERSION_PADDING,
+            windowHeight - VERSION_PADDING);
+        cairo_show_text(cr, GIT_VERSION);
     }
 
     return FALSE;
@@ -234,7 +245,7 @@ void input(Game::Player player)
         game->point(player, 1);
 
     /* If this was run on arm, it was run from the GPIO thread.
-       You can't invoke gtk_widget_queue_draw from there. */
+       You can't successfully invoke gtk_widget_queue_draw from there. */
     #if __arm__
     g_idle_add((GSourceFunc)updateGUI, NULL);
     #else

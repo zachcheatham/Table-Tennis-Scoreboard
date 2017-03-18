@@ -4,14 +4,15 @@ SRC_PATH = src
 BUILD_PATH = build
 BIN_PATH = bin
 
-SOURCES = $(shell find $(SRC_PATH) -name '*.cpp' | sort -k 1nr | cut -f2-)
-OBJECTS = $(SOURCES:$(SRC_PATH)/%.cpp=$(BUILD_PATH)/%.o)
+SOURCES := $(shell find $(SRC_PATH) -name '*.cpp' | sort -k 1nr | cut -f2-)
+OBJECTS := $(SOURCES:$(SRC_PATH)/%.cpp=$(BUILD_PATH)/%.o)
 
 CC = g++
 CFLAGS = -g -Wall -Wextra -std=c++11
+CFLAGS += -DGIT_VERSION=\"$(shell git describe --always --tags --dirty | tr a-z A-Z)\"
 CFLAGSGTK = $(shell pkg-config gtk+-3.0 --cflags)
-LDFLAGS = $(shell pkg-config gtk+-3.0 --libs)
 
+LDFLAGS = $(shell pkg-config gtk+-3.0 --libs)
 ifneq ($(filter arm%,$(shell uname -m)),)
 LDFLAGS += -lpigpio
 endif
