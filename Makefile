@@ -12,10 +12,10 @@ CC = g++
 
 CFLAGS = -Wall -Wextra -std=c++11
 ifeq ($(BUILD),debug)
-CFLAGS += -O0 -g
+CFLAGS += -O0 -g -DNDEBUG
 GIT_VERSION := $(GIT_VERSION)-DEBUG
 else
-CFLAGS += -O2
+CFLAGS += -O2 -s
 endif
 CFLAGS +=-DGIT_VERSION=\"$(GIT_VERSION)\"
 
