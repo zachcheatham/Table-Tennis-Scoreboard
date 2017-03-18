@@ -267,7 +267,8 @@ void buttonChange(int gpio, int level, uint32_t tick)
         }
     }
 }
-#else
+#endif
+#if !__arm__ || defined NDEBUG
 gboolean mouseClick(GtkWidget *widget, GdkEventButton *event)
 {
     (void)widget;
@@ -303,7 +304,7 @@ void windowActivated(GtkApplication* app)
 
     drawingArea = gtk_drawing_area_new();
     g_signal_connect(G_OBJECT(drawingArea), "draw", G_CALLBACK(draw), NULL);
-    #if !__arm__
+    #if !__arm__ || defined NDEBUG
     g_signal_connect(G_OBJECT(drawingArea), "button-release-event", G_CALLBACK(mouseClick), NULL);
     gtk_widget_set_events(drawingArea, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK);
     #endif
