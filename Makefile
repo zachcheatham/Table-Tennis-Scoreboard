@@ -1,4 +1,5 @@
 TARGET = tabletennisscoreboard
+GIT_VERSION := $(shell git describe --always --tags --dirty | tr a-z A-Z)
 
 SRC_PATH = src
 BUILD_PATH = build
@@ -9,7 +10,7 @@ OBJECTS := $(SOURCES:$(SRC_PATH)/%.cpp=$(BUILD_PATH)/%.o)
 
 CC = g++
 CFLAGS = -g -Wall -Wextra -std=c++11
-CFLAGS += -DGIT_VERSION=\"$(shell git describe --always --tags --dirty | tr a-z A-Z)\"
+CFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
 CFLAGSGTK = $(shell pkg-config gtk+-3.0 --cflags)
 
 LDFLAGS = $(shell pkg-config gtk+-3.0 --libs)
@@ -30,6 +31,16 @@ clean:
 	@echo Cleaning...
 	@rm -rf $(BIN_PATH)
 	@rm -rf $(BUILD_PATH)
+
+install:
+	@mkdir -p "${HOME}/.local/share/applications"
+	@cp -f "tabletennisscoreboard.desktop" "${HOME}/.local/share/applications/tabletennisscoreboard.desktop"
+	@sed -i "s~%PATH%~$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/bin~g" "${HOME}/.local/share/applications/tabletennisscoreboard.desktop"
+	@echo Desktop icon installed.
+
+uninstall:
+	@rm "${HOME}/.local/share/applications/tabletennisscoreboard.desktop"
+	@echo Desktop file removed.
 
 $(BIN_PATH)/$(TARGET): $(OBJECTS)
 	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)

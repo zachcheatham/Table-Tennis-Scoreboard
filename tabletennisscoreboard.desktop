@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Table Tennis Scoreboard
+Comment=Pi-Based Table Tennis Scoreboard
+Path=%PATH%
+Exec=%PATH%/tabletennisscoreboard
+Terminal=false
+Categories=Presentation;Sports;
