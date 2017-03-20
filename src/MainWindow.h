@@ -17,8 +17,11 @@ public:
 protected:
     Scoreboard mScoreboard;
 
-    #if !__arm__ || defined NDEBUG
+    #if !__arm__ || !defined NDEBUG
     bool onMouseRelease(GdkEventButton *event);
+    #endif
+    #if __arm__
+    bool drawScoreboard();
     #endif
     bool updateTimer();
     bool idleTimeout();
