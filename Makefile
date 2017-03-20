@@ -19,12 +19,14 @@ CFLAGS += -O2 -s -DNDEBUG
 endif
 CFLAGS +=-DGIT_VERSION=\"$(GIT_VERSION)\"
 
-CFLAGSGTK := $(shell pkg-config gtk+-3.0 --cflags)
+CFLAGSGTK := $(shell pkg-config gtkmm-3.0 --cflags)
 
-LDFLAGS = $(shell pkg-config gtk+-3.0 --libs)
+LDFLAGS = $(shell pkg-config gtkmm-3.0 --libs)
 ifneq ($(filter arm%,$(shell uname -m)),)
 LDFLAGS += -lpigpio
 endif
+
+DEPS := $(OBJECTS:.o=.d)
 
 default: build
 
@@ -33,6 +35,7 @@ build: dirs $(BIN_PATH)/$(TARGET)
 
 debug:
 	make "BUILD=debug"
+	$(BIN_PATH)/$(TARGET)
 
 dirs:
 	@mkdir -p $(BIN_PATH)
@@ -56,8 +59,10 @@ uninstall:
 $(BIN_PATH)/$(TARGET): $(OBJECTS)
 	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
 
-$(BUILD_PATH)/main.o: src/main.cpp
-	$(CC) $(CFLAGS) $(CFLAGSGTK) -c $< -o $@
+$(BUILD_PATH)/game.o: src/game.cpp src/game.h
+	$(CC) -c $(CFLAGS) -MP -MMD -o $@ $<
 
 $(BUILD_PATH)/%.o: $(SRC_PATH)/%.cpp
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) -c $(CFLAGS) $(CFLAGSGTK) -MP -MMD -o $@ $<
+
+-include $(DEPS)

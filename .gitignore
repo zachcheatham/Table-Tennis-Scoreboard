@@ -2,3 +2,4 @@ bin/
 build/
 lib/
 .clang_complete
+core.*
