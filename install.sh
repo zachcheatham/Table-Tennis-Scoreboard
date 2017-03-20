@@ -3,7 +3,7 @@
 printf "Table Tennis Scoreboard Installer\n\n"
 
 echo "This script will also install the following requirements from the internet:"
-echo " - libgtk-3-dev"
+echo " - libgtkmm-3.0-dev"
 echo " - The Ozone font"
 echo " - pigpio"
 echo ""
@@ -27,15 +27,15 @@ mv -f "/tmp/Ozone.ttf" "${HOME}/.fonts/Ozone.ttf"
 rm "/tmp/ozone.zip"
 echo ""
 
-if [ ! -d "/usr/include/gtk-3.0" ]; then
+if [ ! -d "/usr/include/gtkmm-3.0" ]; then
     if [ -f "/usr/bin/apt-get" ]; then
         sudo apt-get update
-        sudo apt-get install libgtk-3-dev
+        sudo apt-get install libgtkmm-3.0-dev
     else
-        echo "It seems we don't have apt. You must install gtk-3-dev on your own to build this program."
+        echo "It seems we don't have apt. You must install libgtkmm-3.0-dev on your own to build this program."
     fi
 else
-    echo "libgtk-3-dev is already installed. Skipping..."
+    echo "libgtkmm-3.0-dev is already installed. Skipping..."
 fi
 echo ""
 
