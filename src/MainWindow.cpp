@@ -140,7 +140,7 @@ void MainWindow::input(Game::Player player)
     {
         mIdleTimeoutConnection = Glib::signal_timeout().connect(
             sigc::mem_fun(*this, &MainWindow::idleTimeout),
-            3000);
+            60000);
     }
 }
 
