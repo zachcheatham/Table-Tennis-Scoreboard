@@ -23,15 +23,21 @@ void Game::startGame(Player firstServing)
     gameStartTime = std::time(nullptr);
 }
 
-void Game::point(Player player, unsigned short points)
+void Game::point(Player player, short points)
 {
     unsigned short winningScore;
 
     // Add to score
     if (player == Player::LEFT)
-        leftScore += points;
+    {
+        if (points > 0 || leftScore >= abs(points))
+            leftScore += points;
+    }
     else
-        rightScore += points;
+    {
+        if (points > 0 || rightScore >= abs(points))
+            rightScore += points;
+    }
 
     // Check for winner
     winningScore = std::max(leftScore, rightScore);

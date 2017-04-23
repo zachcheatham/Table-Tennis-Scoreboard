@@ -18,7 +18,9 @@
 MainWindow::MainWindow() :
     mScoreboard(&mGame),
     mGame(),
-    mInGame(false)
+    mInGame(false),
+    mIgnoreLeftRelease(false),
+    mIgnoreRightRelease(false)
 {
     set_title(APP_NAME);
     #ifdef NDEBUG
@@ -31,6 +33,7 @@ MainWindow::MainWindow() :
 
     #if !__arm__ || !defined NDEBUG
     mScoreboard.signal_button_release_event().connect(sigc::mem_fun(*this, &MainWindow::onMouseRelease));
+    mScoreboard.signal_button_press_event().connect(sigc::mem_fun(*this, &MainWindow::onMousePress));
     mScoreboard.set_events(Gdk::EventMask::BUTTON_PRESS_MASK | Gdk::EventMask::BUTTON_RELEASE_MASK);
     #endif
     add(mScoreboard);
@@ -73,12 +76,22 @@ MainWindow::~MainWindow()
 #endif
 
 #if !__arm__ || !defined NDEBUG
+bool MainWindow::onMousePress(GdkEventButton *event)
+{
+    if (event->button == 1)
+        input(Game::LEFT, true);
+    else if (event->button == 3)
+        input(Game::RIGHT, true);
+
+    return true;
+}
+
 bool MainWindow::onMouseRelease(GdkEventButton *event)
 {
     if (event->button == 1)
-        input(Game::LEFT);
+        input(Game::LEFT, false);
     else if (event->button == 3)
-        input(Game::RIGHT);
+        input(Game::RIGHT, false);
 
     return true;
 }
@@ -93,54 +106,98 @@ void MainWindow::GPIOAlert(int gpio, int level, uint32_t tick, void *obj)
 
     if (window->is_active())
     {
-        if (level == PI_LOW) // Button is pressed down
-        {
-            if (gpio == GPIO_LEFT_BUTTON)
-                window->input(Game::LEFT);
-            else if (gpio == GPIO_RIGHT_BUTTON)
-                window->input(Game::RIGHT);
-        }
+        if (gpio == GPIO_LEFT_BUTTON)
+            window->input(Game::LEFT, level == PI_LOW);
+        else if (gpio == GPIO_RIGHT_BUTTON)
+            window->input(Game::RIGHT, level == PI_LOW);
     }
 }
 #endif
 
-void MainWindow::input(Game::Player player)
+void MainWindow::input(Game::Player player, bool pressed)
 {
-    if (!mInGame || mGame.state == Game::GAMEOVER)
+    if (pressed)
     {
-        if (mIdleTimeoutConnection.connected())
-            mIdleTimeoutConnection.disconnect();
+        if (mInGame) // We only need to do the hold timers while in-game
+        {
+            if (player == Game::LEFT)
+            {
+                /* If for some reason this was pressed twice without release,
+                   we kill the existing timer.*/
+                if (mLeftHoldConnection.connected())
+                    mLeftHoldConnection.disconnect();
 
-        mInGame = true;
-        mGame.startGame(player);
-        mScoreboard.setDrawInstructions(false);
+                mLeftHoldConnection = Glib::signal_timeout().connect(
+                    sigc::bind(sigc::mem_fun(*this, &MainWindow::undoPoint), player),
+                    1000);
+            }
+            else if (player == Game::RIGHT)
+            {
+                if (mRightHoldConnection.connected())
+                    mRightHoldConnection.disconnect();
 
-        // Start refresh for timer if not already done so
-        if (!mTimerConnection.connected())
-            mTimerConnection = Glib::signal_timeout().connect(
-                sigc::mem_fun(*this, &MainWindow::updateTimer),
-                1000);
+                mRightHoldConnection = Glib::signal_timeout().connect(
+                    sigc::bind(sigc::mem_fun(*this, &MainWindow::undoPoint), player),
+                    1000);
+            }
+        }
     }
     else
     {
-        mGame.point(player, 1);
-    }
+        // Kill the button hold timer
+        if (player == Game::LEFT)
+        {
+            if (mLeftHoldConnection.connected())
+                mLeftHoldConnection.disconnect();
+        }
+        else if (player == Game::RIGHT)
+        {
+            if (mRightHoldConnection.connected())
+                mRightHoldConnection.disconnect();
+        }
 
-    /* If this method was run on arm, it was run from the GPIO thread.
-        You can't successfully invoke queue_draw from there. */
-    #if __arm__
-    Glib::signal_idle().connect(
-        sigc::mem_fun(*this, &MainWindow::drawScoreboard));
-    #else
-    mScoreboard.queue_draw();
-    #endif
+        if (player == Game::LEFT and mIgnoreLeftRelease)
+            mIgnoreLeftRelease = false;
+        else if (player == Game::RIGHT and mIgnoreRightRelease)
+            mIgnoreRightRelease = false;
+        else
+        {
+            // Not in-game, start game
+            if (!mInGame || mGame.state == Game::GAMEOVER)
+            {
+                if (mIdleTimeoutConnection.connected())
+                    mIdleTimeoutConnection.disconnect();
 
-    // That move caused the game to end
-    if (mGame.state == Game::GAMEOVER)
-    {
-        mIdleTimeoutConnection = Glib::signal_timeout().connect(
-            sigc::mem_fun(*this, &MainWindow::idleTimeout),
-            60000);
+                mInGame = true;
+                mGame.startGame(player);
+                mScoreboard.setDrawInstructions(false);
+
+                // Start refresh for timer if not already done so
+                if (!mTimerConnection.connected())
+                    mTimerConnection = Glib::signal_timeout().connect(
+                        sigc::mem_fun(*this, &MainWindow::updateTimer),
+                        1000);
+            }
+            else
+                mGame.point(player, 1);
+
+            /* If this method was run on arm, it was run from the GPIO thread.
+                You can't successfully invoke queue_draw from there. */
+            #if __arm__
+            Glib::signal_idle().connect(
+                sigc::mem_fun(*this, &MainWindow::drawScoreboard));
+            #else
+            mScoreboard.queue_draw();
+            #endif
+
+            // That move caused the game to end
+            if (mGame.state == Game::GAMEOVER)
+            {
+                mIdleTimeoutConnection = Glib::signal_timeout().connect(
+                    sigc::mem_fun(*this, &MainWindow::idleTimeout),
+                    60000);
+            }
+        }
     }
 }
 
@@ -166,6 +223,26 @@ bool MainWindow::idleTimeout()
 
     if (mTimerConnection.connected())
         mTimerConnection.disconnect();
+
+    return false;
+}
+
+bool MainWindow::undoPoint(Game::Player player)
+{
+    if (mInGame)
+    {
+        // If we undo a gameover, the timeout timer needs to be canceled.
+        if (mGame.state == Game::GAMEOVER && mIdleTimeoutConnection.connected())
+            mIdleTimeoutConnection.disconnect();
+
+        if (player == Game::LEFT)
+            mIgnoreLeftRelease = true;
+        else if (player == Game::RIGHT)
+            mIgnoreRightRelease = true;
+
+        mGame.point(player, -1);
+        mScoreboard.queue_draw();
+    }
 
     return false;
 }

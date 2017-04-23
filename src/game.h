@@ -29,7 +29,7 @@ public:
 
     Game();
     void startGame(Player firstServing);
-    void point(Player player, unsigned short points);
+    void point(Player player, short points);
     int getGameTime();
 };
 
